@@ -1,6 +1,7 @@
 package main
 
 import (
+	"OneNightUltimateWerewolf/main/GD"
 	"flag"
 	"fmt"
 	"os"
@@ -12,12 +13,16 @@ import (
 
 // Variables used for command line parameters
 var (
-	Token string
+	Token       string
+	isGuildIn   map[string]bool
+	CardDeckMap map[string]GD.CardDeck
 )
 
 func init() {
+	isGuildIn = make(map[string]bool)
+	CardDeckMap = make(map[string]GD.CardDeck)
 
-	flag.StringVar(&Token, "t", "", "Bot Token")
+	flag.StringVar(&Token, "t", "NzU3OTQzMjQ2NzA0ODY5Mzc4.X2nvpw.f1kQjOdXVjO0ifFVKX6azHwIBQE", "Bot Token")
 	flag.Parse()
 }
 
@@ -56,14 +61,19 @@ func main() {
 // This function will be called (due to AddHandler above) every time a new
 // message is created on any channel that the authenticated bot has access to.
 func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
-
 	// Ignore all messages created by the bot itself
 	// This isn't required in this specific example but it's a good practice.
 	if m.Author.ID == s.State.User.ID {
 		return
 	}
+	if isGuildIn[m.GuildID] {
+		isGuildIn[m.GuildID] = true
+		CardDeckMap[m.GuildID] = *GD.NewCardDeck()
+	}
 	// If the message is "ping" reply with "Pong!"
 	if m.Content == "ping" {
+		//cd := CardDeckMap[m.GuildID]
+		s.ChannelMessageSend(m.ChannelID, "cd.PopCard()")
 		s.ChannelMessageSend(m.ChannelID, "Pong!")
 	}
 
