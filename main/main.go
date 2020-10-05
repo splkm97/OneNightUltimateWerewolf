@@ -66,10 +66,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if m.Author.ID == s.State.User.ID {
 		return
 	}
-	if isGuildIn[m.GuildID] {
-		isGuildIn[m.GuildID] = true
-		CardDeckMap[m.GuildID] = *GD.NewCardDeck()
-	}
+
 	// If the message is "ping" reply with "Pong!"
 	if m.Content == "ping" {
 		//cd := CardDeckMap[m.GuildID]
