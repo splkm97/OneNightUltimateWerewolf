@@ -11,7 +11,7 @@ type CardDeck struct {
 
 func NewCardDeck() *CardDeck {
 	cards := []string{
-		"늑대",
+		"늑대인간",
 		"하수인",
 		"예언자",
 		"강도",
