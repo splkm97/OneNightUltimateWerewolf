@@ -1,4 +1,4 @@
-package GD
+package WF
 
 import (
 	"math/rand"
