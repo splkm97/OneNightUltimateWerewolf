@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -16,6 +17,17 @@ import (
 const (
 	MaxUser = 6
 	prefix  = "="
+	eBin    = "🚮"
+	eOne    = "1️⃣"
+	eTwo    = "2️⃣"
+	eThree  = "3️⃣"
+	eFour   = "4️⃣"
+	eFive   = "5️⃣"
+	eSix    = "6️⃣"
+	eSeven  = "7️⃣"
+	eEight  = "8️⃣"
+	eNine   = "9️⃣"
+	eTen    = "🔟"
 )
 
 var (
@@ -25,6 +37,7 @@ var (
 // Variables used for command line parameters
 var (
 	Token     string
+	eNum      []string
 	isGuildIn map[string]bool
 	isUserIn  map[string]bool
 	uidToGid  map[string]string
@@ -33,6 +46,8 @@ var (
 
 func init() {
 	hwUserIDs = make([]string, 0, 10)
+
+	eNum = []string{eOne, eTwo, eThree, eFour, eFive, eSix, eSeven, eEight, eNine, eTen}
 
 	uidToGid = make(map[string]string)
 	isGuildIn = make(map[string]bool)
@@ -52,10 +67,8 @@ func main() {
 	}
 
 	// Register the messageCreate func as a callback for MessageCreate events.
+	dg.AddHandler(messageReactionAdd)
 	dg.AddHandler(messageCreate)
-
-	// In this example, we only care about receiving message events.
-	dg.Identify.Intents = discordgo.MakeIntent(discordgo.IntentsGuildMessages)
 
 	// Open a websocket connection to Discord and begin listening.
 	err = dg.Open()
@@ -72,6 +85,180 @@ func main() {
 
 	// Cleanly close down the Discord session.
 	_ = dg.Close()
+}
+
+func messageReactionAdd(s *discordgo.Session, r *discordgo.MessageReactionAdd) {
+	if r.UserID == s.State.User.ID {
+		return
+	}
+	if !isUserIn[r.UserID] {
+		return
+	}
+
+	gid := uidToGid[r.UserID]
+	wfd := wfDataMap[gid]
+	if wfd.CurStage == "Werewolf_only" {
+		if wfd.UserRole[r.UserID] == "늑대인간" {
+			if r.Emoji.Name == eOne {
+				s.ChannelMessageDelete(r.ChannelID, r.MessageID)
+				uChan, _ := s.UserChannelCreate(r.UserID)
+				s.ChannelMessageSend(uChan.ID, "<1번: `"+wfd.CardDeck.Cards[0]+"` >")
+			}
+			if r.Emoji.Name == eTwo {
+				s.ChannelMessageDelete(r.ChannelID, r.MessageID)
+				uChan, _ := s.UserChannelCreate(r.UserID)
+				s.ChannelMessageSend(uChan.ID, "<2번: `"+wfd.CardDeck.Cards[1]+"` >")
+			}
+			if r.Emoji.Name == eThree {
+				s.ChannelMessageDelete(r.ChannelID, r.MessageID)
+				uChan, _ := s.UserChannelCreate(r.UserID)
+				s.ChannelMessageSend(uChan.ID, "<3번: `"+wfd.CardDeck.Cards[2]+"` >")
+			}
+		}
+	}
+	if wfd.CurStage == "Seer" {
+		if wfd.UserRole[r.UserID] == "예언자" {
+			if r.Emoji.Name == eBin {
+				s.ChannelMessageDelete(r.ChannelID, r.MessageID)
+				wfd.CurStage = "Seer_trash"
+				msg, _ := s.ChannelMessageSend(r.ChannelID, "보지 않고 덮어둘 카드를 고르시오\n< 1 > < 2 > < 3 >")
+				s.MessageReactionAdd(r.ChannelID, msg.ID, eOne)
+				s.MessageReactionAdd(r.ChannelID, msg.ID, eTwo)
+				s.MessageReactionAdd(r.ChannelID, msg.ID, eThree)
+			}
+			for i := 0; i < len(wfd.UserIDs); i++ {
+				if r.Emoji.Name == eNum[i] {
+					if wfd.UserIDs[i] != r.UserID {
+						s.ChannelMessageDelete(r.ChannelID, r.MessageID)
+						wfd.CurStage = "Seer_used_power"
+						powerMsg := strconv.Itoa(i+1) + "번째 유저는 `" + wfd.UserRole[wfd.UserIDs[i]] + "` 입니다."
+						s.ChannelMessageSend(r.ChannelID, powerMsg)
+					}
+				}
+			}
+		}
+	}
+	if wfd.CurStage == "Seer_trash" {
+		if wfd.UserRole[r.UserID] == "예언자" {
+			trashMsg := ""
+			if r.Emoji.Name == eOne {
+				s.ChannelMessageDelete(r.ChannelID, r.MessageID)
+				trashMsg += "<2번: " + wfd.CardDeck.Cards[1] + "> <3번: " + wfd.CardDeck.Cards[2] + ">"
+				s.ChannelMessageSend(r.ChannelID, trashMsg)
+			}
+			if r.Emoji.Name == eTwo {
+				s.ChannelMessageDelete(r.ChannelID, r.MessageID)
+				trashMsg += "<1번: " + wfd.CardDeck.Cards[0] + "> <3번: " + wfd.CardDeck.Cards[2] + ">"
+				s.ChannelMessageSend(r.ChannelID, trashMsg)
+			}
+			if r.Emoji.Name == eThree {
+				s.ChannelMessageDelete(r.ChannelID, r.MessageID)
+				trashMsg += "<1번: " + wfd.CardDeck.Cards[0] + "> <2번: " + wfd.CardDeck.Cards[1] + ">"
+				s.ChannelMessageSend(r.ChannelID, trashMsg)
+			}
+		}
+	}
+	if wfd.CurStage == "Robber" {
+		if wfd.UserRole[r.UserID] == "강도" {
+			robberMsg := ""
+			for i := 0; i < len(wfd.UserIDs); i++ {
+				if r.Emoji.Name == eNum[i] {
+					if wfd.UserIDs[i] != r.UserID {
+						s.ChannelMessageDelete(r.ChannelID, r.MessageID)
+						user, _ := s.User(wfd.UserIDs[i])
+						robberMsg = user.Username + "은 `" + wfd.FinalRole[wfd.UserIDs[i]] + "` 이었습니다. 하지만 이젠 아니죠."
+						wfd.FinalRole[r.UserID] = wfd.FinalRole[wfd.UserIDs[i]]
+						wfd.FinalRole[wfd.UserIDs[i]] = "강도"
+						s.ChannelMessageSend(r.ChannelID, robberMsg)
+					}
+				}
+			}
+		}
+	}
+	if wfd.CurStage == "TroubleMaker" {
+		if wfd.UserRole[r.UserID] == "말썽쟁이" {
+			tmMsg := ""
+			for i := 0; i < len(wfd.UserIDs); i++ {
+				if r.Emoji.Name == eNum[i] {
+					if wfd.UserIDs[i] != r.UserID {
+						wfd.CurStage = "TroubleMaker_oneMoreChoice"
+						wfd.IndexChan <- i
+						s.ChannelMessageDelete(r.ChannelID, r.MessageID)
+						user, _ := s.User(wfd.UserIDs[i])
+						selectMsg := "`" + user.Username + "`님을 선택하였습니다."
+						s.ChannelMessageSend(r.ChannelID, selectMsg)
+						index := len(wfd.UserIDs)
+						for j := 0; j < len(wfd.UserIDs); j++ {
+							if i == j {
+								index = j
+								break
+							}
+							if wfd.UserRole[wfd.UserIDs[j]] == "말썽쟁이" {
+								tmMsg += "~~"
+							}
+							user, _ := s.User(wfd.UserIDs[j])
+							tmMsg += "<" + strconv.Itoa(j+1) + "번 사용자: " + user.Username + "> "
+							if wfd.UserRole[wfd.UserIDs[j]] == "말썽쟁이" {
+								tmMsg += "~~"
+							}
+						}
+						for j := index + 1; j < len(wfd.UserIDs); j++ {
+							if wfd.UserRole[wfd.UserIDs[j]] == "말썽쟁이" {
+								tmMsg += "~~"
+							}
+							user, _ := s.User(wfd.UserIDs[j])
+							tmMsg += "<" + strconv.Itoa(j) + "번 사용자: " + user.Username + "> "
+							if wfd.UserRole[wfd.UserIDs[j]] == "말썽쟁이" {
+								tmMsg += "~~"
+							}
+						}
+						msg, _ := s.ChannelMessageSend(r.ChannelID, tmMsg)
+						for i := 0; i < len(wfd.UserIDs)-1; i++ {
+							s.MessageReactionAdd(r.ChannelID, msg.ID, eNum[i])
+						}
+					}
+				}
+			}
+		}
+	}
+	if wfd.CurStage == "TroubleMaker_oneMoreCoice" {
+		if wfd.UserRole[r.UserID] == "말썽쟁이" {
+			prev := <-wfd.IndexChan
+			index := len(wfd.UserIDs)
+			for i := 0; i < len(wfd.UserIDs); i++ {
+				if i == prev {
+					index = i
+					break
+				}
+				if wfd.UserIDs[i] != r.UserID {
+					if r.Emoji.Name == eNum[i] {
+						s.ChannelMessageDelete(r.ChannelID, r.MessageID)
+						user, _ := s.User(wfd.UserIDs[i])
+						tmMsg := "`" + user.Username + "`님을 선택하였습니다."
+						s.ChannelMessageSend(r.ChannelID, tmMsg)
+						temp := wfd.FinalRole[wfd.UserIDs[i]]
+						wfd.FinalRole[wfd.UserIDs[i]] = wfd.FinalRole[wfd.UserIDs[prev]]
+						wfd.FinalRole[wfd.UserIDs[prev]] = temp
+						s.ChannelMessageSend(r.ChannelID, "성공적으로 교환되었습니다.")
+					}
+				}
+			}
+			for i := index + 1; i < len(wfd.UserIDs); i++ {
+				if wfd.UserIDs[i] != r.UserID {
+					if r.Emoji.Name == eNum[i] {
+						s.ChannelMessageDelete(r.ChannelID, r.MessageID)
+						user, _ := s.User(wfd.UserIDs[i])
+						tmMsg := "`" + user.Username + "`님을 선택하였습니다."
+						s.ChannelMessageSend(r.ChannelID, tmMsg)
+						temp := wfd.FinalRole[wfd.UserIDs[i]]
+						wfd.FinalRole[wfd.UserIDs[i]] = wfd.FinalRole[wfd.UserIDs[prev]]
+						wfd.FinalRole[wfd.UserIDs[prev]] = temp
+						s.ChannelMessageSend(r.ChannelID, "성공적으로 교환되었습니다.")
+					}
+				}
+			}
+		}
+	}
 }
 
 // This function will be called (due to AddHandler above) every time a new
@@ -129,7 +316,13 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 						roleBrief += getRoleInfo(wfd.UserRole[item])
 						s.ChannelMessageSend(uChan.ID, roleBrief)
 					}
-
+					wfd.CurStage = "Werewolf"
+					werewolfTask(s, wfd)
+					minionTask(s, wfd)
+					seerTask(s, wfd)
+					robberTask(s, wfd)
+					tmTask(s, wfd)
+					insomniacTask(s, wfd)
 				} else {
 					s.ChannelMessageSend(m.ChannelID, "정확한 인원이 모이지 않았습니다. ("+strconv.Itoa(len(wfd.UserIDs))+"/"+strconv.Itoa(MaxUser)+")")
 				}
@@ -138,6 +331,236 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 
 	homeworkMethod(s, m)
+}
+
+func werewolfTask(s *discordgo.Session, wfd *WF.WFData) {
+	s.ChannelMessageSend(wfd.UseChannelID, "늑대인간의 차례입니다.")
+	wolvesID := make([]string, 0, 10)
+	for _, item := range wfd.UserIDs {
+		if wfd.UserRole[item] == "늑대인간" {
+			wolvesID = append(wolvesID, item)
+		}
+	}
+	tchan := make(chan bool)
+	go func() {
+		time.Sleep(40 * time.Second)
+		wfd.CurStage = "Minion"
+		tchan <- true
+	}()
+
+	if len(wolvesID) == 1 {
+		wfd.CurStage = "Werewolf_only"
+
+		wolvesMsg := "20초 안에 세 장의 비공개 카드 중 한 장을 선택하세요"
+		wolvesMsg += "< 1 > < 2 > < 3 >"
+		uChan, _ := s.UserChannelCreate(wolvesID[0])
+		msg, _ := s.ChannelMessageSend(uChan.ID, wolvesMsg)
+		s.MessageReactionAdd(uChan.ID, msg.ID, eOne)
+		s.MessageReactionAdd(uChan.ID, msg.ID, eTwo)
+		s.MessageReactionAdd(uChan.ID, msg.ID, eThree)
+		<-tchan
+		s.ChannelMessageSend(uChan.ID, "당신의 차례가 끝났습니다.")
+		s.ChannelMessageSend(wfd.UseChannelID, "늑대인간의 차례 종료")
+		return
+	}
+	for _, item := range wolvesID {
+		uChan, _ := s.UserChannelCreate(item)
+		wolvesMsg := "늑대인간: "
+		for _, item := range wolvesID {
+			user, _ := s.User(item)
+			wolvesMsg += "<" + user.Username + "> "
+		}
+		s.ChannelMessageSend(uChan.ID, wolvesMsg)
+
+	}
+	<-tchan
+	s.ChannelMessageSend(wfd.UseChannelID, "늑대인간의 차례 종료.")
+}
+
+func minionTask(s *discordgo.Session, wfd *WF.WFData) {
+	s.ChannelMessageSend(wfd.UseChannelID, "하수인의 차례입니다.")
+	tchan := make(chan bool)
+	go func() {
+		time.Sleep(time.Second * 10)
+		wfd.CurStage = "Seer"
+		tchan <- true
+	}()
+	wolvesID := make([]string, 0, 10)
+	minionID := ""
+	for _, item := range wfd.UserIDs {
+		if wfd.UserRole[item] == "늑대인간" {
+			wolvesID = append(wolvesID, item)
+		}
+		if wfd.UserRole[item] == "하수인" {
+			minionID = item
+		}
+	}
+	minionMsg := "늑대인간은, "
+	for _, item := range wolvesID {
+		user, _ := s.User(item)
+		minionMsg += "<" + user.Username + "> "
+	}
+	minionMsg += "입니다."
+
+	if len(wolvesID) == 0 {
+		minionMsg = "늑대인간이 존재하지 않습니다."
+	}
+
+	user, err := s.User(minionID)
+	if err != nil {
+		<-tchan
+		s.ChannelMessageSend(wfd.UseChannelID, "하수인의 차례 종료.")
+		return
+	}
+
+	uChan, _ := s.UserChannelCreate(user.ID)
+	s.ChannelMessageSend(uChan.ID, minionMsg)
+	<-tchan
+	s.ChannelMessageSend(wfd.UseChannelID, "하수인의 차례 종료.")
+}
+
+func seerTask(s *discordgo.Session, wfd *WF.WFData) {
+	s.ChannelMessageSend(wfd.UseChannelID, "예언자의 차례입니다.")
+	seerID := ""
+	tchan := make(chan bool)
+	go func() {
+		time.Sleep(30 * time.Second)
+		wfd.CurStage = "Robber"
+		tchan <- true
+	}()
+	seerMsg := "30초 안에 버려진 카드중 2장 또는, 확인하고싶은 사람 한 명을 선택하세요\n자신은 선택할 수 없어요\t(" + eBin + "): 버려진 카드에서 고르기\n"
+	for i, item := range wfd.UserIDs {
+		if wfd.UserRole[item] == "예언자" {
+			seerID = item
+			seerMsg += "~~"
+		}
+		user, _ := s.User(item)
+		seerMsg += "<" + strconv.Itoa(i+1) + "번 사용자: " + user.Username + ">\t"
+		if wfd.UserRole[item] == "예언자" {
+			seerMsg += "~~"
+		}
+	}
+	if seerID == "" {
+		<-tchan
+		s.ChannelMessageSend(wfd.UseChannelID, "예언자의 차례 종료.")
+		return
+	}
+	uChan, _ := s.UserChannelCreate(seerID)
+	msg, _ := s.ChannelMessageSend(uChan.ID, seerMsg)
+	s.MessageReactionAdd(uChan.ID, msg.ID, eBin)
+	for i := 0; i < len(wfd.UserIDs); i++ {
+		s.MessageReactionAdd(uChan.ID, msg.ID, eNum[i])
+	}
+
+	<-tchan
+	s.ChannelMessageSend(wfd.UseChannelID, "예언자의 차례 종료.")
+}
+
+func robberTask(s *discordgo.Session, wfd *WF.WFData) {
+	s.ChannelMessageSend(wfd.UseChannelID, "강도의 차례입니다.")
+	tchan := make(chan bool)
+	go func() {
+		time.Sleep(30 * time.Second)
+		wfd.CurStage = "TroubleMaker"
+		tchan <- true
+	}()
+
+	robberID := ""
+	robberMsg := "자신은 선택할 수 없어요\n"
+	for i, item := range wfd.UserIDs {
+		if wfd.UserRole[item] == "강도" {
+			robberID = item
+			robberMsg += "~~"
+		}
+		user, _ := s.User(item)
+		robberMsg += "<" + strconv.Itoa(i+1) + "번 사용자: " + user.Username + ">\t"
+		if wfd.UserRole[item] == "강도" {
+			robberMsg += "~~"
+		}
+	}
+	if robberID == "" {
+		<-tchan
+		s.ChannelMessageSend(wfd.UseChannelID, "강도의 차례 종료.")
+		return
+	}
+	uChan, _ := s.UserChannelCreate(robberID)
+	msg, _ := s.ChannelMessageSend(uChan.ID, robberMsg)
+	for i := 0; i < len(wfd.UserIDs); i++ {
+		s.MessageReactionAdd(uChan.ID, msg.ID, eNum[i])
+	}
+
+	<-tchan
+	s.ChannelMessageSend(wfd.UseChannelID, "강도의 차례 종료.")
+
+}
+
+func tmTask(s *discordgo.Session, wfd *WF.WFData) {
+	s.ChannelMessageSend(wfd.UseChannelID, "말썽쟁이의 차례입니다.")
+	tchan := make(chan bool)
+	go func() {
+		time.Sleep(60 * time.Second)
+		wfd.CurStage = "Insomniac"
+		tchan <- true
+	}()
+
+	tmID := ""
+	tmMsg := "자신은 선택할 수 없어요\n"
+	for i, item := range wfd.UserIDs {
+		if wfd.UserRole[item] == "말썽쟁이" {
+			tmID = item
+			tmMsg += "~~"
+		}
+		user, _ := s.User(item)
+		tmMsg += "<" + strconv.Itoa(i+1) + "번 사용자: " + user.Username + ">\t"
+		if wfd.UserRole[item] == "말썽쟁이" {
+			tmMsg += "~~"
+		}
+	}
+	if tmID == "" {
+		<-tchan
+		s.ChannelMessageSend(wfd.UseChannelID, "말썽쟁이의 차례 종료.")
+		return
+	}
+	uChan, _ := s.UserChannelCreate(tmID)
+	msg, _ := s.ChannelMessageSend(uChan.ID, tmMsg)
+	for i := 0; i < len(wfd.UserIDs); i++ {
+		s.MessageReactionAdd(uChan.ID, msg.ID, eNum[i])
+	}
+
+	<-tchan
+	s.ChannelMessageSend(wfd.UseChannelID, "말썽쟁이의 차례 종료.")
+
+}
+
+func insomniacTask(s *discordgo.Session, wfd *WF.WFData) {
+	s.ChannelMessageSend(wfd.UseChannelID, "불면증환자의 차례입니다.")
+	tchan := make(chan bool)
+	go func() {
+		time.Sleep(10 * time.Second)
+		wfd.CurStage = "Day"
+		tchan <- true
+	}()
+
+	inID := ""
+	for _, item := range wfd.UserIDs {
+		if wfd.UserRole[item] == "불면증환자" {
+			inID = item
+		}
+	}
+
+	if inID == "" {
+		<-tchan
+		s.ChannelMessageSend(wfd.UseChannelID, "불면증환자의 차례 종료.")
+		return
+	}
+
+	uChan, _ := s.UserChannelCreate(inID)
+	s.ChannelMessageSend(uChan.ID, "다른 모든 사람이 능력을 쓴 후, 당신의 역할은 다음과 같습니다."+
+		"\n역할: "+wfd.UserRole[inID])
+
+	<-tchan
+	s.ChannelMessageSend(wfd.UseChannelID, "불면증환자의 차례 종료.")
+
 }
 
 func getRoleInfo(role string) string {
@@ -162,15 +585,9 @@ func getRoleInfo(role string) string {
 			"\n당신이 죽으면 마을 사람들과 늑대인간들은 패배합니다." +
 			"\n**당신의 불운을 여기서 멈추고 싶다면, 이제 영원한 잠에 빠질 때입니다.. 안타깝지만, 행운을 빕니다...**"
 	}
-	if role == "마을시민" {
-		info = "당신은 잔뜩 겁에 질린 평범한 마을 시민입니다." +
-			"\n당신은 아무런 능력도 가지지 못했습니다." +
-			"\n단지 당신은 늑대인간을 찾아내어 처형하세요, 불안과 공포에서 해방될 수 있을거에요." +
-			"\n늑대인간을 한명이라도 찾아내어 처형한다면 승리입니다." +
-			"\n하수인이 죽더라도 늑대인간이 남는다면 오늘 밤 당신은 아마.... 끔찍하죠." +
-			"\n하지만 늑대인간과 그들의 하수인이 한명도 없을 수도 있어요." +
-			"\n그 경우에는 아무도 죽어서는 안됩니다." +
-			"\n**늑대인간들은 당신을 혼란스럽게 만들겁니다. 행운을 빕니다.**"
+	if role == "마을주민" {
+		info = "당신은 아무런 능력도 가지지 못했습니다." +
+			"\n불안과 공포속에서 늑대인간을 찾아서 처형하세요"
 	}
 	if role == "하수인" {
 		info = "당신은 늑대인간들을 위해 목숨바칠 각오가 되어 있는 하수인입니다." +
