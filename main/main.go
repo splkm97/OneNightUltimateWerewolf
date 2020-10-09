@@ -41,6 +41,7 @@ var (
 		"예언자",
 		"강도",
 		"말썽쟁이",
+		"주정뱅이",
 		"무두장이",
 		"마을주민",
 		"불면증환자",
@@ -51,6 +52,7 @@ var (
 		"예언자",
 		"강도",
 		"말썽쟁이",
+		"주정뱅이",
 		"불면증환자",
 	}
 	Token          string
@@ -360,6 +362,26 @@ func messageReactionAdd(s *discordgo.Session, r *discordgo.MessageReactionAdd) {
 				}
 			}
 		}
+		if wfd.CurStage == "주정뱅이" {
+			if wfd.UserRole[r.UserID] == "주정뱅이" {
+				dr, _ := s.User(r.UserID)
+				for i := 0; i < 3; i++ {
+					if r.Emoji.Name == eNum[i] {
+						s.ChannelMessageDelete(r.ChannelID, r.MessageID)
+						wfd.GameLog += "\n주정뱅이 `" + dr.Username +
+							"` 는 버려진 카드 중 `" + wfd.CardDeck.Cards[i] + "` (와)과" +
+							" 자신의 카드 `주정뱅이` 를 맞바꾸었습니다."
+						temp := wfd.CardDeck.Cards[i]
+						wfd.CardDeck.Cards[i] = "주정뱅이"
+						wfd.FinalRole[dr.ID] = temp
+						s.ChannelMessageSend(r.ChannelID, "술에 취한 당신은, "+
+							strconv.Itoa(i+1)+"번 카드와 맞바꾸었습니다."+
+							"\n이런... 술에 취해 무슨 카드였는지도 잊어버렸군요..")
+						wfd.TimingChan <- true
+					}
+				}
+			}
+		}
 	}
 
 	if wfd.CurStage == "Election" {
@@ -507,6 +529,20 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 					cardMap[m.GuildID] = append(cardMap[m.GuildID], "마을주민")
 					s.ChannelMessageSend(wfd.UseChannelID, "마을주민을 넣었습니다.")
 				}
+				if m.Content == prefix+"주정뱅이" {
+					count := 0
+					for _, item := range cardMap[m.GuildID] {
+						if item == "주정뱅이" {
+							count++
+							if count == 1 {
+								s.ChannelMessageSend(wfd.UseChannelID, "주정뱅이는 최대 3장입니다.")
+								return
+							}
+						}
+					}
+					cardMap[m.GuildID] = append(cardMap[m.GuildID], "주정뱅이")
+					s.ChannelMessageSend(wfd.UseChannelID, "주정뱅이를 넣었습니다.")
+				}
 				if m.Content == prefix+"직업설정 완료" {
 
 					wfd.CardDeck.ChoiceChan <- 0
@@ -559,6 +595,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 					seerTask(s, wfd)
 					robberTask(s, wfd)
 					tmTask(s, wfd)
+					drunkTask(s, wfd)
 					insomniacTask(s, wfd)
 					dayBriefTask(s, wfd)
 					cancelGameTask(m)
@@ -747,7 +784,7 @@ func werewolfTask(s *discordgo.Session, wfd *WF.Data) {
 	if len(wolvesID) == 1 {
 		wfd.CurStage = "늑대인간_only"
 
-		wolvesMsg := "20초 안에 세 장의 비공개 카드 중 한 장을 선택하세요"
+		wolvesMsg := "세 장의 비공개 카드 중 한 장을 선택하세요"
 		wolvesMsg += "< 1 > < 2 > < 3 >"
 		uChan, _ := s.UserChannelCreate(wolvesID[0])
 		msg, _ := s.ChannelMessageSend(uChan.ID, wolvesMsg)
@@ -821,7 +858,8 @@ func minionTask(s *discordgo.Session, wfd *WF.Data) {
 func seerTask(s *discordgo.Session, wfd *WF.Data) {
 	s.ChannelMessageSend(wfd.UseChannelID, "예언자의 차례입니다.")
 	seerID := ""
-	seerMsg := "30초 안에 버려진 카드중 2장 또는, 확인하고싶은 사람 한 명을 선택하세요\n자신은 선택할 수 없어요\t(" + eBin + "): 버려진 카드에서 고르기\n"
+	seerMsg := "버려진 카드들 중 2장 또는, 확인하고싶은 사람 한 명을 선택하세요" +
+		"\n자신은 선택할 수 없어요\t(" + eBin + "): 버려진 카드에서 고르기\n"
 	for i, item := range wfd.UserIDs {
 		if wfd.UserRole[item] == "예언자" {
 			seerID = item
@@ -940,12 +978,45 @@ func tmTask(s *discordgo.Session, wfd *WF.Data) {
 
 }
 
+func drunkTask(s *discordgo.Session, wfd *WF.Data) {
+	s.ChannelMessageSend(wfd.UseChannelID, "주정뱅이의 차례입니다.")
+
+	drunkID := ""
+	for _, item := range wfd.UserIDs {
+		if wfd.UserRole[item] == "주정뱅이" {
+			drunkID = item
+		}
+	}
+
+	if drunkID == "" {
+		wfd.GameLog += "\n주정뱅이는 없었습니다."
+		go func() {
+			time.Sleep(10 * time.Second)
+			nextStage(wfd)
+			wfd.TimingChan <- true
+		}()
+		<-wfd.TimingChan
+		s.ChannelMessageSend(wfd.UseChannelID, "주정뱅이의 차례 종료.")
+		return
+	}
+
+	drunkChan, _ := s.UserChannelCreate(drunkID)
+	msg, _ := s.ChannelMessageSend(drunkChan.ID, "세 장의 버려진 카드 중 한장을 고르세요"+
+		"\n< 1 > < 2 > < 3 >")
+	s.MessageReactionAdd(drunkChan.ID, msg.ID, eOne)
+	s.MessageReactionAdd(drunkChan.ID, msg.ID, eTwo)
+	s.MessageReactionAdd(drunkChan.ID, msg.ID, eThree)
+
+	<-wfd.TimingChan
+	s.ChannelMessageSend(wfd.UseChannelID, "주정뱅이의 차례 종료")
+}
+
 func insomniacTask(s *discordgo.Session, wfd *WF.Data) {
 	s.ChannelMessageSend(wfd.UseChannelID, "불면증환자의 차례입니다.")
 
 	go func() {
 		time.Sleep(10 * time.Second)
-		wfd.CurStage = "Day"
+		nextStage(wfd)
 		wfd.TimingChan <- true
 	}()
 
