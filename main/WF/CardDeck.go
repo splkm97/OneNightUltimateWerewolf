@@ -6,22 +6,15 @@ import (
 )
 
 type CardDeck struct {
-	Cards []string
+	Cards      []string
+	ChoiceChan chan int
 }
 
 func NewCardDeck() *CardDeck {
-	cards := []string{
-		"늑대인간",
-		"늑대인간",
-		"하수인",
-		"예언자",
-		"강도",
-		"말썽쟁이",
-		"무두장이",
-		"마을주민",
-		"불면증환자",
+	cd := CardDeck{
+		Cards:      make([]string, 0, 10),
+		ChoiceChan: make(chan int, 2),
 	}
-	cd := CardDeck{cards}
 	cd.ShuffleCards()
 	return &cd
 }

@@ -13,8 +13,18 @@ func NewElectInfo(voterName, candiID string) *ElectInfo {
 	return &ElectInfo{VoterName: voterName, CandiID: candiID}
 }
 
-type WFData struct {
+type SettingData struct {
+	CardDeck CardDeck
+	MaxUser  int
+}
+
+func NewSettingData(cardDeck CardDeck, maxUser int) *SettingData {
+	return &SettingData{CardDeck: cardDeck, MaxUser: maxUser}
+}
+
+type Data struct {
 	CardDeck     CardDeck
+	MaxUser      int
 	GameLog      string
 	IndexChan    chan int
 	TimingChan   chan bool
@@ -28,13 +38,13 @@ type WFData struct {
 	DeadUserMap  map[string]bool
 }
 
-func NewWFData(uid, cid string) *WFData {
+func NewWFData(uid, cid string) *Data {
 	nc := NewCardDeck()
 	nc.ShuffleCards()
-	return &WFData{
+	return &Data{
 		CardDeck:     *nc,
 		GameLog:      "",
-		TimingChan:   make(chan bool),
+		TimingChan:   make(chan bool, 2),
 		IndexChan:    make(chan int, 10),
 		ElectChan:    make(chan *ElectInfo, 10),
 		CurStage:     "Prepare",
@@ -47,7 +57,7 @@ func NewWFData(uid, cid string) *WFData {
 	}
 }
 
-func (wfd *WFData) AppendUser(uid string) {
+func (wfd *Data) AppendUser(uid string) {
 	wfd.UserIDs = append(wfd.UserIDs, uid)
 	wfd.UserRole[uid] = wfd.CardDeck.PopCard()
 	wfd.FinalRole[uid] = wfd.UserRole[uid]
