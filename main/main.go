@@ -370,6 +370,13 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		}
 		if isGuildIn[m.GuildID] {
 			wfd = wfDataMap[m.GuildID]
+			if wfd.CurStage == "Prepare_card" {
+				if m.Content == prefix+"ㅇㅇ" {
+					wfd.CardDeck.ChoiceChan <- 0
+				} else if m.Content == prefix+"ㄴㄴ" {
+					wfd.CardDeck.ChoiceChan <- 1
+				}
+			}
 			if wfd.CurStage == "Prepare_class" {
 				if m.Content == prefix+"늑대인간" {
 					s.ChannelMessageSend(wfd.UseChannelID, "늑대인간은 2명이 최대입니다.")
