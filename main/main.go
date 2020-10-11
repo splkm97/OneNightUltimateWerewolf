@@ -115,8 +115,10 @@ func nextStage(wfd *WF.Data) {
 		if strings.HasPrefix(wfd.CurStage, item) {
 			if len(gameSeq) == i+1 {
 				wfd.CurStage = "Day"
+				break
 			} else {
 				wfd.CurStage = gameSeq[i+1]
+				break
 			}
 		}
 	}
@@ -174,7 +176,7 @@ func messageReactionAdd(s *discordgo.Session, r *discordgo.MessageReactionAdd) {
 			if r.Emoji.Name == eBin {
 				s.ChannelMessageDelete(r.ChannelID, r.MessageID)
 				wfd.CurStage = "예언자_trash"
-				msg, _ := s.ChannelMessageSend(r.ChannelID, "보지 않고 덮어둘 카드를 고르시오\n< 1 > < 2 > < 3 >")
+				msg, _ := s.ChannelMessageSend(r.ChannelID, "보지 않을 직업을 고르세요.\n< 1 > < 2 > < 3 >")
 				s.MessageReactionAdd(r.ChannelID, msg.ID, eOne)
 				s.MessageReactionAdd(r.ChannelID, msg.ID, eTwo)
 				s.MessageReactionAdd(r.ChannelID, msg.ID, eThree)
@@ -203,7 +205,7 @@ func messageReactionAdd(s *discordgo.Session, r *discordgo.MessageReactionAdd) {
 		if wfd.UserRole[r.UserID] == "예언자" {
 			seer, _ := s.User(r.UserID)
 			trashMsg := ""
-			wfd.GameLog += "\n`예언자``" + seer.Username + "` (은)는 버려진 카드 "
+			wfd.GameLog += "\n`예언자` `" + seer.Username + "` (은)는 버려진 직업 "
 			if r.Emoji.Name == eOne {
 				s.ChannelMessageDelete(r.ChannelID, r.MessageID)
 				trashMsg += "<2번: `" + wfd.CardDeck.Cards[1] + "`>" +
@@ -275,6 +277,8 @@ func messageReactionAdd(s *discordgo.Session, r *discordgo.MessageReactionAdd) {
 						s.ChannelMessageDelete(r.ChannelID, r.MessageID)
 						user, _ := s.User(wfd.UserIDs[i])
 						tmMsg := "`" + user.Username + "` 님을 선택하였습니다."
+						wfd.GameLog += "`" + wfd.FinalRole[wfd.UserIDs[i]] + "`" +
+							" 인 `" + user.Username + "` 의 직업을 맞바꾸었습니다."
 						s.ChannelMessageSend(r.ChannelID, tmMsg)
 						temp := wfd.FinalRole[wfd.UserIDs[i]]
 						wfd.FinalRole[wfd.UserIDs[i]] = wfd.FinalRole[wfd.UserIDs[prev]]
@@ -362,23 +366,23 @@ func messageReactionAdd(s *discordgo.Session, r *discordgo.MessageReactionAdd) {
 				}
 			}
 		}
-		if wfd.CurStage == "주정뱅이" {
-			if wfd.UserRole[r.UserID] == "주정뱅이" {
-				dr, _ := s.User(r.UserID)
-				for i := 0; i < 3; i++ {
-					if r.Emoji.Name == eNum[i] {
-						s.ChannelMessageDelete(r.ChannelID, r.MessageID)
-						wfd.GameLog += "\n주정뱅이 `" + dr.Username +
-							"` 는 버려진 카드 중 `" + wfd.CardDeck.Cards[i] + "` (와)과" +
-							" 자신의 카드 `주정뱅이` 를 맞바꾸었습니다."
-						temp := wfd.CardDeck.Cards[i]
-						wfd.CardDeck.Cards[i] = "주정뱅이"
-						wfd.FinalRole[dr.ID] = temp
-						s.ChannelMessageSend(r.ChannelID, "술에 취한 당신은, "+
-							strconv.Itoa(i+1)+"번 카드와 맞바꾸었습니다."+
-							"\n이런... 술에 취해 무슨 카드였는지도 잊어버렸군요..")
-						wfd.TimingChan <- true
-					}
+	}
+	if wfd.CurStage == "주정뱅이" {
+		if wfd.UserRole[r.UserID] == "주정뱅이" {
+			dr, _ := s.User(r.UserID)
+			for i := 0; i < 3; i++ {
+				if r.Emoji.Name == eNum[i] {
+					s.ChannelMessageDelete(r.ChannelID, r.MessageID)
+					wfd.GameLog += "\n주정뱅이 `" + dr.Username +
+						"` 는 버려진 직업 중 `" + wfd.CardDeck.Cards[i] + "` (와)과" +
+						" 자신의 직업 `주정뱅이` 를 맞바꾸었습니다."
+					temp := wfd.CardDeck.Cards[i]
+					wfd.CardDeck.Cards[i] = "주정뱅이"
+					wfd.FinalRole[dr.ID] = temp
+					s.ChannelMessageSend(r.ChannelID, "술에 취한 당신은, "+
+						strconv.Itoa(i+1)+"번 직업와 맞바꾸었습니다."+
+						"\n이런... 술에 취해 무슨 직업이었는지도 잊어버렸군요..")
+					wfd.TimingChan <- true
 				}
 			}
 		}
@@ -429,12 +433,12 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			cardSetting(s, m.GuildID, wfd)
 			<-wfd.TimingChan
 			prevSettingMap[m.GuildID] = WF.NewSettingData(wfd.CardDeck, wfd.MaxUser)
-			cardMsg := "> 카드 설정이 완료되었습니다. 설정된 카드들은 다음과 같습니다."
+			cardMsg := "> 직업 설정이 완료되었습니다. 설정된 직업들은 다음과 같습니다."
 			for _, item := range wfd.CardDeck.Cards {
 				cardMsg += "\n" + item
 			}
 			cardMsg += "\n**총 " + strconv.Itoa(len(wfd.CardDeck.Cards)) +
-				"장의 카드가 선정되었습니다. 총 플레이 인원은 " +
+				"개의 직업이 선정되었습니다. 총 플레이 인원은 " +
 				strconv.Itoa(len(wfd.CardDeck.Cards)-3) + "명 입니다.**"
 			s.ChannelMessageSend(wfd.UseChannelID, cardMsg)
 			wfd.CardDeck.ShuffleCards()
@@ -612,8 +616,8 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 func cardSetting(s *discordgo.Session, gid string, wfd *WF.Data) {
 	cardMap[gid] = make([]string, 0, 10)
 
-	s.ChannelMessageSend(wfd.UseChannelID, "> 카드 설정을 시작합니다.")
-	s.ChannelMessageSend(wfd.UseChannelID, "이전 설정과 동일한 카드 설정을 사용할까요?\n("+prefix+"ㅇㅇ/"+prefix+"ㄴㄴ)")
+	s.ChannelMessageSend(wfd.UseChannelID, "> 직업 설정을 시작합니다.")
+	s.ChannelMessageSend(wfd.UseChannelID, "이전 설정과 동일한 직업 설정을 사용할까요?\n("+prefix+"ㅇㅇ/"+prefix+"ㄴㄴ)")
 
 	choice := <-wfd.CardDeck.ChoiceChan
 	if choice == 0 {
@@ -630,10 +634,11 @@ func cardSetting(s *discordgo.Session, gid string, wfd *WF.Data) {
 	}
 	cardMap[gid] = append(cardMap[gid], "늑대인간")
 	cardMap[gid] = append(cardMap[gid], "늑대인간")
-	s.ChannelMessageSend(wfd.UseChannelID, "늑대인간 2장은 필수입니다. 카드 덱에 넣었습니다.")
+	s.ChannelMessageSend(wfd.UseChannelID, "늑대인간 2장은 필수입니다. 직업 덱에 넣었습니다.")
 	for true {
 		wfd.CurStage = "Prepare_class"
-		s.ChannelMessageSend(wfd.UseChannelID, "추가할 직업들을 입력하세요")
+		s.ChannelMessageSend(wfd.UseChannelID, "추가할 직업들을 입력하세요. (ex: ㅁ마을주민)"+
+			"\n모두 입력한 후 `"+prefix+"직업설정 완료` 로 다음 단계로 넘어가세요.")
 		classMsg := "구현된 직업 목록:"
 		for _, item := range classList {
 			classMsg += " " + item
@@ -776,7 +781,6 @@ func werewolfTask(s *discordgo.Session, wfd *WF.Data) {
 		go func() {
 			wfd.GameLog += "`늑대인간`이 " + strconv.Itoa(len(wolvesID)) + " 명이라 서로를 확인만 합니다.\n"
 			time.Sleep(10 * time.Second)
-			nextStage(wfd)
 			wfd.TimingChan <- true
 		}()
 	}
@@ -784,7 +788,7 @@ func werewolfTask(s *discordgo.Session, wfd *WF.Data) {
 	if len(wolvesID) == 1 {
 		wfd.CurStage = "늑대인간_only"
 
-		wolvesMsg := "세 장의 비공개 카드 중 한 장을 선택하세요"
+		wolvesMsg := "세 장의 비공개 직업 중 한 개를 선택하세요\n"
 		wolvesMsg += "< 1 > < 2 > < 3 >"
 		uChan, _ := s.UserChannelCreate(wolvesID[0])
 		msg, _ := s.ChannelMessageSend(uChan.ID, wolvesMsg)
@@ -792,6 +796,7 @@ func werewolfTask(s *discordgo.Session, wfd *WF.Data) {
 		s.MessageReactionAdd(uChan.ID, msg.ID, eTwo)
 		s.MessageReactionAdd(uChan.ID, msg.ID, eThree)
 		<-wfd.TimingChan
+		nextStage(wfd)
 		s.ChannelMessageSend(uChan.ID, "당신의 차례가 끝났습니다.")
 		s.ChannelMessageSend(wfd.UseChannelID, "늑대인간의 차례 종료")
 		return
@@ -807,6 +812,7 @@ func werewolfTask(s *discordgo.Session, wfd *WF.Data) {
 
 	}
 	<-wfd.TimingChan
+	nextStage(wfd)
 	s.ChannelMessageSend(wfd.UseChannelID, "늑대인간의 차례 종료.")
 }
 
@@ -825,7 +831,6 @@ func minionTask(s *discordgo.Session, wfd *WF.Data) {
 	}
 	go func() {
 		time.Sleep(time.Second * 10)
-		nextStage(wfd)
 		wfd.TimingChan <- true
 	}()
 	minionMsg := "늑대인간은, "
@@ -845,6 +850,7 @@ func minionTask(s *discordgo.Session, wfd *WF.Data) {
 	user, err := s.User(minionID)
 	if err != nil {
 		<-wfd.TimingChan
+		nextStage(wfd)
 		s.ChannelMessageSend(wfd.UseChannelID, "하수인의 차례 종료.")
 		return
 	}
@@ -852,14 +858,15 @@ func minionTask(s *discordgo.Session, wfd *WF.Data) {
 	uChan, _ := s.UserChannelCreate(user.ID)
 	s.ChannelMessageSend(uChan.ID, minionMsg)
 	<-wfd.TimingChan
+	nextStage(wfd)
 	s.ChannelMessageSend(wfd.UseChannelID, "하수인의 차례 종료.")
 }
 
 func seerTask(s *discordgo.Session, wfd *WF.Data) {
 	s.ChannelMessageSend(wfd.UseChannelID, "예언자의 차례입니다.")
 	seerID := ""
-	seerMsg := "버려진 카드들 중 2장 또는, 확인하고싶은 사람 한 명을 선택하세요" +
-		"\n자신은 선택할 수 없어요\t(" + eBin + "): 버려진 카드에서 고르기\n"
+	seerMsg := "버려진 직업들 중 2개 또는, 직업을 확인하고싶은 사람 한 명을 선택하세요" +
+		"\n자신은 선택할 수 없어요\t(" + eBin + "): 버려진 직업들에서 고르기\n"
 	for i, item := range wfd.UserIDs {
 		if wfd.UserRole[item] == "예언자" {
 			seerID = item
@@ -875,12 +882,12 @@ func seerTask(s *discordgo.Session, wfd *WF.Data) {
 		wfd.GameLog += "\n예언자는 없었습니다."
 		go func() {
 			time.Sleep(20 * time.Second)
-			nextStage(wfd)
 			wfd.TimingChan <- true
 		}()
 	}
 	if seerID == "" {
 		<-wfd.TimingChan
+		nextStage(wfd)
 		s.ChannelMessageSend(wfd.UseChannelID, "예언자의 차례 종료.")
 		return
 	}
@@ -916,7 +923,6 @@ func robberTask(s *discordgo.Session, wfd *WF.Data) {
 		wfd.GameLog += "\n강도는 없었습니다."
 		go func() {
 			time.Sleep(20 * time.Second)
-			nextStage(wfd)
 			wfd.TimingChan <- true
 		}()
 	}
@@ -957,13 +963,13 @@ func tmTask(s *discordgo.Session, wfd *WF.Data) {
 	if tmID == "" {
 		wfd.GameLog += "\n말썽쟁이는 없었습니다."
 		go func() {
-			time.Sleep(25 * time.Second)
-			nextStage(wfd)
+			time.Sleep(20 * time.Second)
 			wfd.TimingChan <- true
 		}()
 	}
 	if tmID == "" {
 		<-wfd.TimingChan
+		nextStage(wfd)
 		s.ChannelMessageSend(wfd.UseChannelID, "말썽쟁이의 차례 종료.")
 		return
 	}
@@ -974,6 +980,7 @@ func tmTask(s *discordgo.Session, wfd *WF.Data) {
 	}
 
 	<-wfd.TimingChan
+	nextStage(wfd)
 	s.ChannelMessageSend(wfd.UseChannelID, "말썽쟁이의 차례 종료.")
 
 }
@@ -992,22 +999,23 @@ func drunkTask(s *discordgo.Session, wfd *WF.Data) {
 		wfd.GameLog += "\n주정뱅이는 없었습니다."
 		go func() {
 			time.Sleep(10 * time.Second)
-			nextStage(wfd)
 			wfd.TimingChan <- true
 		}()
 		<-wfd.TimingChan
+		nextStage(wfd)
 		s.ChannelMessageSend(wfd.UseChannelID, "주정뱅이의 차례 종료.")
 		return
 	}
 
 	drunkChan, _ := s.UserChannelCreate(drunkID)
-	msg, _ := s.ChannelMessageSend(drunkChan.ID, "세 장의 버려진 카드 중 한장을 고르세요"+
+	msg, _ := s.ChannelMessageSend(drunkChan.ID, "세 장의 비공개 직업 중 한 개를 선택하세요."+
 		"\n< 1 > < 2 > < 3 >")
 	s.MessageReactionAdd(drunkChan.ID, msg.ID, eOne)
 	s.MessageReactionAdd(drunkChan.ID, msg.ID, eTwo)
 	s.MessageReactionAdd(drunkChan.ID, msg.ID, eThree)
 
 	<-wfd.TimingChan
+	nextStage(wfd)
 	s.ChannelMessageSend(wfd.UseChannelID, "주정뱅이의 차례 종료")
 }
 
@@ -1016,7 +1024,6 @@ func insomniacTask(s *discordgo.Session, wfd *WF.Data) {
 
 	go func() {
 		time.Sleep(10 * time.Second)
-		nextStage(wfd)
 		wfd.TimingChan <- true
 	}()
 
@@ -1030,6 +1037,7 @@ func insomniacTask(s *discordgo.Session, wfd *WF.Data) {
 	if inID == "" {
 		wfd.GameLog += "\n불면증환자는 없었습니다."
 		<-wfd.TimingChan
+		nextStage(wfd)
 		s.ChannelMessageSend(wfd.UseChannelID, "불면증환자의 차례 종료.")
 		return
 	}
@@ -1041,6 +1049,7 @@ func insomniacTask(s *discordgo.Session, wfd *WF.Data) {
 	wfd.GameLog += "\n불면증환자 `" + inUser.Username + "` (은)는 자신의 최종 직업 `" +
 		wfd.FinalRole[inID] + "` (을)를 확인하였습니다."
 	<-wfd.TimingChan
+	nextStage(wfd)
 	s.ChannelMessageSend(wfd.UseChannelID, "불면증환자의 차례 종료.")
 
 }
@@ -1050,12 +1059,11 @@ func getRoleInfo(role string) string {
 
 	if role == "늑대인간" {
 		info = "당신은 게임이 시작된 후에 동료 늑대인간을 확인할 수 있습니다." +
-			"\n만약 동료 늑대인간이 없다면, 버려진 역할 카드들 3장 중 1장을 확인할 수 있습니다." +
+			"\n만약 동료 늑대인간이 없다면, 버려진 직업들 3개 중 1개를 확인할 수 있습니다." +
 			"\n마을 사람들을 혼란에 빠뜨리세요. 능력이 사라지지 않았다면 말이죠."
 	}
 	if role == "무두장이" {
-		info = "당신은 당신의 일이 죽을만큼 싫습니다." +
-			"\n그래서 당신은 죽기로 결심했죠." +
+		info = "당신은 죽기로 결심했죠." +
 			"\n당신이 늑대인간인 것 처럼 연기하세요." +
 			"\n처형된다면, 당신의 승리입니다."
 	}
@@ -1068,7 +1076,7 @@ func getRoleInfo(role string) string {
 			"\n그들을 도와 모든 늑대인간이 처형당하지 않도록 하세요."
 	}
 	if role == "예언자" {
-		info = "당신은 버려진 3장의 카드 중 2장을 보거나," +
+		info = "당신은 버려진 3개의 직업들 중 2개를 보거나," +
 			"\n다른 사람 하나의 능력을 볼 수 있습니다." +
 			"\n예언이 밝혀준 곳을 따라 늑대인간을 찾아서 처형하세요."
 	}
@@ -1079,8 +1087,8 @@ func getRoleInfo(role string) string {
 			"\n훔친 능력을 확인하고, 훔친 능력에 맞게 늑대인간을 처형할지 말지 판단하세요"
 	}
 	if role == "말썽쟁이" {
-		info = "당신도 모르는 새에 두 사람의 능력을 바꾸어버렸습니다." +
-			"\n당신은 하지만 그 두 사람이 무슨 능력이 있는지는 알 수 없습니다." +
+		info = "당신도 모르는 새에 두 사람의 능력을 바꾸어버리다니.. 말도 안돼죠." +
+			"\n당신은 하지만 그런 능력을 갖고 있어요. 그래도 두 사람이 무슨 능력이 있었는지는 알 수 없습니다." +
 			"\n혼란스럽겠지만, 늑대인간을 찾아 처형하세요."
 	}
 	if role == "불면증환자" {
