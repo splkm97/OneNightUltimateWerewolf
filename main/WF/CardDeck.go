@@ -2,6 +2,7 @@ package WF
 
 import (
 	"math/rand"
+	"sort"
 	"time"
 )
 
@@ -18,7 +19,9 @@ func NewCardDeck() *CardDeck {
 	cd.ShuffleCards()
 	return &cd
 }
-
+func (cd *CardDeck) SortCards() {
+	sort.Strings(cd.Cards)
+}
 func (cd *CardDeck) ShuffleCards() {
 	rand.Seed(time.Now().Unix())
 	rand.Shuffle(len(cd.Cards), func(i, j int) {

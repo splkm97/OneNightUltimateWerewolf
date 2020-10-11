@@ -14,20 +14,26 @@ func NewElectInfo(voterName, candiID string) *ElectInfo {
 }
 
 type SettingData struct {
-	CardDeck CardDeck
+	CardDeck *CardDeck
 	MaxUser  int
 }
 
 func NewSettingData(cardDeck CardDeck, maxUser int) *SettingData {
-	return &SettingData{CardDeck: cardDeck, MaxUser: maxUser}
+	newCardDeck := NewCardDeck()
+	for _, item := range cardDeck.Cards {
+		newCardDeck.Cards = append(newCardDeck.Cards, item)
+	}
+	return &SettingData{CardDeck: newCardDeck, MaxUser: maxUser}
 }
 
 type Data struct {
 	CardDeck     CardDeck
 	MaxUser      int
+	DIFlag       bool
 	GameLog      string
 	IndexChan    chan int
 	TimingChan   chan bool
+	DoppelChan   chan bool
 	ElectChan    chan *ElectInfo
 	CurStage     string
 	AdminUserID  string
@@ -44,7 +50,9 @@ func NewWFData(uid, cid string) *Data {
 	return &Data{
 		CardDeck:     *nc,
 		GameLog:      "",
+		DIFlag:       false,
 		TimingChan:   make(chan bool, 2),
+		DoppelChan:   make(chan bool, 2),
 		IndexChan:    make(chan int, 10),
 		ElectChan:    make(chan *ElectInfo, 10),
 		CurStage:     "Prepare",
