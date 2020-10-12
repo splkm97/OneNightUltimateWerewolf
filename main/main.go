@@ -4,6 +4,8 @@ import (
 	"OneNightUltimateWerewolf/main/WF"
 	"flag"
 	"fmt"
+	embed "github.com/clinet/discordgo-embed"
+	"io/ioutil"
 	"os"
 	"os/signal"
 	"strconv"
@@ -35,6 +37,7 @@ var (
 
 // Variables used for command line parameters
 var (
+	helpMsg   string
 	classList = []string{
 		"도플갱어",
 		"늑대인간",
@@ -71,6 +74,18 @@ func init() {
 	hwUserIDs = make([]string, 0, 10)
 
 	eNum = []string{eOne, eTwo, eThree, eFour, eFive, eSix, eSeven, eEight, eNine, eTen}
+
+	dat, err := ioutil.ReadFile("./Asset/help.txt")
+	if err != nil {
+		panic(err)
+	}
+	helpMsg = string(dat)
+	for i, item := range classList {
+		helpMsg += item + " "
+		if i == 4 {
+			helpMsg += "\n"
+		}
+	}
 
 	cardMap = make(map[string][]string)
 	prevSettingMap = make(map[string]*WF.SettingData)
@@ -229,7 +244,7 @@ func messageReactionAdd(s *discordgo.Session, r *discordgo.MessageReactionAdd) {
 				}
 				wfd.CurStage = "도플갱어_예언자"
 			} else if copyRole == "말썽쟁이" {
-				sendDiscardsAddReaction(s, uChan)
+				sendAllUserAddReaction(s, wfd, "말썽쟁이", uChan)
 				wfd.CurStage = "도플갱어_말썽쟁이"
 			} else if copyRole == "불면증환자" {
 				wfd.DIFlag = true
@@ -358,12 +373,16 @@ func tmReactionTask(s *discordgo.Session, r *discordgo.MessageReactionAdd, wfd *
 						index = j
 						break
 					}
-					if wfd.UserRole[wfd.UserIDs[j]] == "말썽쟁이" {
+					if (wfd.UserRole[wfd.UserIDs[j]] == "도플갱어" && wfd.FinalRole[wfd.UserIDs[j]] == "말썽쟁이") ||
+						(wfd.UserRole[wfd.UserIDs[j]] == "말썽쟁이" &&
+							!(wfd.UserRole[wfd.UserIDs[j]] == "도플갱어" && wfd.FinalRole[wfd.UserIDs[j]] == "말썽쟁이")) {
 						tmMsg += "~~"
 					}
 					user, _ := s.User(wfd.UserIDs[j])
 					tmMsg += "<" + strconv.Itoa(j+1) + "번 사용자: " + user.Username + "> "
-					if wfd.UserRole[wfd.UserIDs[j]] == "말썽쟁이" {
+					if (wfd.UserRole[wfd.UserIDs[j]] == "도플갱어" && wfd.FinalRole[wfd.UserIDs[j]] == "말썽쟁이") ||
+						(wfd.UserRole[wfd.UserIDs[j]] == "말썽쟁이" &&
+							!(wfd.UserRole[wfd.UserIDs[j]] == "도플갱어" && wfd.FinalRole[wfd.UserIDs[j]] == "말썽쟁이")) {
 						tmMsg += "~~"
 					}
 				}
@@ -541,6 +560,35 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 
 	if strings.HasPrefix(m.Content, prefix) { // 프리픽스로 시작하는 메시지일 경우
+		if m.Content == prefix+"help" || m.Content == prefix+"도움말" {
+			helpEmbedMsg := embed.NewEmbed()
+			helpEmbedMsg.SetTitle("한밤의 늑대인간 도움말")
+			helpEmbedMsg.AddField("게임 시작 명령어", "게임을 시작하려면, `"+prefix+"시작` 을 입력하세요.")
+			helpEmbedMsg.AddField("게임 개요", helpMsg)
+			s.ChannelMessageSendEmbed(m.ChannelID, helpEmbedMsg.MessageEmbed)
+		}
+
+		if strings.HasPrefix(m.Content, prefix+"직업소개") {
+			classStr := strings.Split(m.Content, " ")
+			if len(classStr) != 1 {
+				classEmbedMsg := embed.NewEmbed()
+				classFlag := false
+				for _, item := range classList {
+					if classStr[1] == item {
+						classFlag = true
+						classEmbedMsg.SetTitle(item + " 소개")
+						classEmbedMsg.AddField(item, getRoleInfo(item))
+						break
+					}
+				}
+				if !classFlag {
+					s.ChannelMessageSend(m.ChannelID, "직업 이름이 잘못되었습니다.")
+				} else {
+					s.ChannelMessageSendEmbed(m.ChannelID, classEmbedMsg.MessageEmbed)
+				}
+			}
+		}
+
 		var wfd *WF.Data
 
 		if m.Content == prefix+"강제종료" {
@@ -560,20 +608,20 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			<-wfd.TimingChan
 			prevSettingMap[m.GuildID] = WF.NewSettingData(wfd.CardDeck, wfd.MaxUser)
 			prevSettingMap[m.GuildID].CardDeck.SortCards()
-			cardMsg := "\n> 직업 설정이 완료되었습니다. 설정된 직업들은 다음과 같습니다."
+			cardMsg := ""
 			for _, item := range wfd.CardDeck.Cards {
 				cardMsg += "\n" + item
 			}
-			cardMsg += "\n**총 " + strconv.Itoa(len(wfd.CardDeck.Cards)) +
-				"개의 직업이 선정되었습니다. 총 플레이 인원은 " +
-				strconv.Itoa(len(wfd.CardDeck.Cards)-3) + "명 입니다.**"
-
-			s.ChannelMessageSend(wfd.UseChannelID, cardMsg)
+			cardMsg += "\n**총 " + strconv.Itoa(len(wfd.CardDeck.Cards)) + "개의 직업이 선정되었습니다." +
+				"\n총 플레이 인원은 " + strconv.Itoa(len(wfd.CardDeck.Cards)-3) + "명 입니다.**"
+			s.ChannelMessageSendEmbed(wfd.UseChannelID, embed.NewGenericEmbed("설정된 직업", cardMsg))
 			wfd.CardDeck.ShuffleCards()
 			newUserTask(m)
 			wfDataMap[m.GuildID].CurStage = "Prepare"
 
-			s.ChannelMessageSend(m.ChannelID, "\n> 게임 시작!\n> `"+prefix+"입장` 으로 입장하세요")
+			s.ChannelMessageSendEmbed(m.ChannelID, embed.NewGenericEmbed(
+				"게임 시작 준비...", "`"+prefix+"입장` 으로 입장하세요"+
+					"\n`"+prefix+"마감` 으로 입장을 마감하세요."))
 		}
 		if isGuildIn[m.GuildID] {
 			wfd = wfDataMap[m.GuildID]
@@ -726,10 +774,11 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 							uChan, _ := s.UserChannelCreate(uid)
 							user, _ := s.User(uid)
 							wfd.GameLog += "`" + user.Username + "` 님의 역할이 `" + wfd.UserRole[uid] + "` (으)로 배정되었습니다.\n"
-							roleBrief := "\n> **당신의 역할은 **`" + wfd.UserRole[uid] + "`**입니다.**\n"
-							roleBrief += getRoleInfo(wfd.UserRole[uid])
+							roleEmbed := embed.NewEmbed()
+							roleBrief := getRoleInfo(wfd.UserRole[uid])
+							roleEmbed.AddField("**당신의 역할은 **`"+wfd.UserRole[uid]+"`**입니다.**", roleBrief)
 							s.ChannelMessageSend(uChan.ID, "")
-							s.ChannelMessageSend(uChan.ID, roleBrief)
+							s.ChannelMessageSendEmbed(uChan.ID, roleEmbed.MessageEmbed)
 						}(item)
 					}
 
@@ -853,7 +902,7 @@ func electFinishTask(s *discordgo.Session, wfd *WF.Data) {
 			}
 		}
 	}
-	electResultMsg := "\n> 투표 결과 :\n"
+	electResultMsg := ""
 	max := 0
 	maxi := -1
 	for i, item := range electResult {
@@ -870,11 +919,8 @@ func electFinishTask(s *discordgo.Session, wfd *WF.Data) {
 	if max == 1 {
 		electResultMsg += "모두가 한표씩을 받게 되었습니다. 아무도 처형되지 않았습니다.\n"
 
-		s.ChannelMessageSend(wfd.UseChannelID, electResultMsg)
-		time.Sleep(3 * time.Second)
-
-		s.ChannelMessageSend(wfd.UseChannelID, "\n> 게임 로그:")
-		s.ChannelMessageSend(wfd.UseChannelID, wfd.GameLog)
+		s.ChannelMessageSendEmbed(wfd.UseChannelID, embed.NewGenericEmbed("투표 결과", electResultMsg))
+		s.ChannelMessageSendEmbed(wfd.UseChannelID, embed.NewGenericEmbed("게임 로그", wfd.GameLog))
 		return
 	}
 	electResultMsg += "> "
@@ -885,36 +931,42 @@ func electFinishTask(s *discordgo.Session, wfd *WF.Data) {
 			electResultMsg += " `" + user.Username + "`"
 		}
 	}
+
 	electResultMsg += " 님이 총 " + strconv.Itoa(electResult[maxi]) + " 표로 처형되었습니다."
-	s.ChannelMessageSend(wfd.UseChannelID, electResultMsg)
-	s.ChannelMessageSend(wfd.UseChannelID, "처형된 사람의 직업은..?")
+
+	s.ChannelMessageSendEmbed(wfd.UseChannelID, embed.NewGenericEmbed("투표 결과", electResultMsg))
+
+	s.ChannelMessageSendEmbed(wfd.UseChannelID, embed.NewGenericEmbed("처형된 사람의 직업은...?", ""))
 	for i := 0; i < 3; i++ {
 		s.ChannelMessageSend(wfd.UseChannelID, "...")
 		time.Sleep(time.Second)
 	}
-	electResultMsg = "\n> 처형된 사람의 직업은"
+	executeTitle := "처형된 사람의 직업은"
+	executeMsg := ""
 	for i, item := range electResult {
 		if item == max {
 			user, _ := s.User(wfd.UserIDs[i])
-			electResultMsg += "\n<`" + user.Username + "` : `" +
+			executeMsg += "\n<`" + user.Username + "` : `" +
 				wfd.UserRole[wfd.UserIDs[i]] + "`-> `" +
 				wfd.FinalRole[wfd.UserIDs[i]] + "`>"
 		}
 	}
-	electResultMsg += " 입니다."
+	executeMsg += " 입니다."
 
-	s.ChannelMessageSend(wfd.UseChannelID, electResultMsg)
-	electResultMsg = "\n> 모두의 최종 직업:"
+	s.ChannelMessageSendEmbed(wfd.UseChannelID, embed.NewGenericEmbed(executeTitle, executeMsg))
+	finalRoleTitle := "모두의 최종 직업"
+	finalRoleMsg := ""
 	for _, item := range wfd.UserIDs {
 		user, _ := s.User(item)
-		electResultMsg += "\n<`" + user.Username + "` : `" + wfd.FinalRole[item] + "`>"
+		finalRoleMsg += "\n<`" + user.Username + "` : `" + wfd.FinalRole[item] + "`>"
 	}
 
-	s.ChannelMessageSend(wfd.UseChannelID, electResultMsg)
+	s.ChannelMessageSendEmbed(wfd.UseChannelID, embed.NewGenericEmbed(finalRoleTitle, finalRoleMsg))
 	time.Sleep(3 * time.Second)
 
-	s.ChannelMessageSend(wfd.UseChannelID, "\n> 게임 로그:")
-	s.ChannelMessageSend(wfd.UseChannelID, wfd.GameLog)
+	logEmbed := embed.NewEmbed()
+	logEmbed.AddField("게임 로그", wfd.GameLog)
+	s.ChannelMessageSendEmbed(wfd.UseChannelID, logEmbed.MessageEmbed)
 }
 
 func doppelTask(s *discordgo.Session, wfd *WF.Data) {
@@ -1264,13 +1316,18 @@ func getRoleInfo(role string) string {
 
 	if role == "도플갱어" {
 		info = "당신은 도플갱어 업니다." +
-			"\n처음으로 만난 사람과 같은 직업을 갖게 됩니다." +
-			"\n다른 사람의 직업을 확인하 후, 당신은 그의 편에 서야 할 겁니다."
+			"\n처음으로 만난 사람과" +
+			"\n같은 직업을 갖게 됩니다." +
+			"\n다른 사람의 직업을 확인한 후," +
+			"\n당신은 그의 편에 서야 할 겁니다."
 	}
 	if role == "늑대인간" {
-		info = "당신은 게임이 시작된 후에 동료 늑대인간을 확인할 수 있습니다." +
-			"\n만약 동료 늑대인간이 없다면, 버려진 직업들 3개 중 1개를 확인할 수 있습니다." +
-			"\n마을 사람들을 혼란에 빠뜨리세요. 능력이 사라지지 않았다면 말이죠."
+		info = "당신은 게임이 시작된 후에" +
+			"\n동료 늑대인간을 확인할 수 있습니다." +
+			"\n만약 동료 늑대인간이 없다면," +
+			"\n버려진 직업들 3개 중 1개를 확인할 수 있습니다." +
+			"\n마을 사람들을 혼란에 빠뜨리세요." +
+			"\n능력이 사라지지 않았다면 말이죠."
 	}
 	if role == "무두장이" {
 		info = "당신은 죽기로 결심했죠." +
@@ -1278,8 +1335,10 @@ func getRoleInfo(role string) string {
 			"\n처형된다면, 당신의 승리입니다."
 	}
 	if role == "마을주민" {
-		info = "당신은 아무런 능력도 가지지 못했습니다." +
-			"\n불안과 공포속에서 늑대인간을 찾아서 처형하세요"
+		info = "당신은 아무런 능력도" +
+			"\n가지지 못했습니다." +
+			"\n불안과 공포속에서" +
+			"\n늑대인간을 찾아서 처형하세요"
 	}
 	if role == "하수인" {
 		info = "당신은 누가 늑대인간인지 알고 있어요." +
@@ -1291,23 +1350,32 @@ func getRoleInfo(role string) string {
 			"\n예언이 밝혀준 곳을 따라 늑대인간을 찾아서 처형하세요."
 	}
 	if role == "강도" {
-		info = "당신은 무언갈 훔쳤습니다. 그것은 물건이 아닌 능력이죠." +
-			"\n늑대인간의 능력을 훔쳤다면, 당신은 늑대인간이 될 것이고," +
-			"\n그 늑대인간은 자신이 아직도 늑대인간인 줄 알 겁니다." +
-			"\n훔친 능력을 확인하고, 훔친 능력에 맞게 늑대인간을 처형할지 말지 판단하세요"
+		info = "당신은 무언갈 훔쳤습니다." +
+			"\n그것은 물건이 아닌 능력이죠." +
+			"\n늑대인간의 능력을 훔쳤다면," +
+			"\n당신은 늑대인간이 될 것이고," +
+			"\n그 늑대인간은 자신이 아직도" +
+			"\n늑대인간인 줄 알 겁니다." +
+			"\n훔친 능력을 확인하고," +
+			"\n훔친 능력에 맞게 누군가 처형하세요."
 	}
 	if role == "말썽쟁이" {
 		info = "당신도 모르는 새에 두 사람의 능력을 바꾸어버리다니.. 말도 안돼죠." +
-			"\n당신은 하지만 그런 능력을 갖고 있어요. 그래도 두 사람이 무슨 능력이 있었는지는 알 수 없습니다." +
+			"\n당신은 하지만 그런 능력을 갖고 있어요." +
+			"\n그래도 두 사람이 무슨 능력이 있었는지는 알 수 없습니다." +
 			"\n혼란스럽겠지만, 늑대인간을 찾아 처형하세요."
 	}
 	if role == "불면증환자" {
-		info = "당신은 겨우 잠이 들었지만 얼마 지나지 않아 깨어났습니다." +
-			"\n덕분에 당신은 어떤 새로운 힘이 생겼는지 알 수 있었죠." +
-			"\n늑대인간을 처형하세요, 당신이 늑대인간이 되지 않았다면요."
+		info = "당신은 겨우 잠이 들었지만" +
+			"\n얼마 지나지 않아 깨어났습니다." +
+			"\n덕분에 당신은 당신이 무엇인지" +
+			"\n명확하게 알 수 있었죠." +
+			"\n늑대인간을 처형하세요," +
+			"\n당신이 늑대인간이 되지 않았다면요."
 	}
 	if role == "주정뱅이" {
-		info = "당신은 술에 잔뜩 취해 어젯밤 일을 기억하지 못합니다.." +
+		info = "당신은 술에 잔뜩 취해" +
+			"\n이번 밤 일을 기억하지 못할 겁니다.." +
 			"\n어쩌면 당신은 늑대인간이었을지도?"
 	}
 
