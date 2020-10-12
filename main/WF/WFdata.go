@@ -28,42 +28,46 @@ func NewSettingData(cardDeck CardDeck, maxUser int) *SettingData {
 }
 
 type Data struct {
-	CardDeck     CardDeck
-	OriCardDeck  CardDeck
-	MaxUser      int
-	DIFlag       bool
-	GameLog      string
-	IndexChan    chan int
-	TimingChan   chan bool
-	DoppelChan   chan bool
-	ElectChan    chan *ElectInfo
-	CurStage     string
-	AdminUserID  string
-	UseChannelID string
-	UserIDs      []string
-	UserRole     map[string]string
-	FinalRole    map[string]string
-	DeadUserMap  map[string]bool
+	CardDeck         CardDeck
+	OriCardDeck      CardDeck
+	MaxUser          int
+	DIFlag           bool
+	GameLog          string
+	IndexChan        chan int
+	TimingChan       chan bool
+	DoppelChan       chan bool
+	ElectChan        chan *ElectInfo
+	CurStage         string
+	DoppelRobberFlag bool
+	DoppelDrunkFlag  bool
+	AdminUserID      string
+	UseChannelID     string
+	UserIDs          []string
+	UserRole         map[string]string
+	FinalRole        map[string]string
+	DeadUserMap      map[string]bool
 }
 
 func NewWFData(uid, cid string) *Data {
 	nc := NewCardDeck()
 	nc.ShuffleCards()
 	return &Data{
-		CardDeck:     *nc,
-		GameLog:      "",
-		DIFlag:       false,
-		TimingChan:   make(chan bool, 2),
-		DoppelChan:   make(chan bool, 2),
-		IndexChan:    make(chan int, 10),
-		ElectChan:    make(chan *ElectInfo, 10),
-		CurStage:     "Prepare",
-		AdminUserID:  uid,
-		UseChannelID: cid,
-		UserRole:     make(map[string]string),
-		FinalRole:    make(map[string]string),
-		UserIDs:      make([]string, 0, MaxUser),
-		DeadUserMap:  make(map[string]bool),
+		CardDeck:         *nc,
+		DoppelDrunkFlag:  false,
+		DoppelRobberFlag: false,
+		GameLog:          "",
+		DIFlag:           false,
+		TimingChan:       make(chan bool, 2),
+		DoppelChan:       make(chan bool, 2),
+		IndexChan:        make(chan int, 10),
+		ElectChan:        make(chan *ElectInfo, 10),
+		CurStage:         "Prepare",
+		AdminUserID:      uid,
+		UseChannelID:     cid,
+		UserRole:         make(map[string]string),
+		FinalRole:        make(map[string]string),
+		UserIDs:          make([]string, 0, MaxUser),
+		DeadUserMap:      make(map[string]bool),
 	}
 }
 
