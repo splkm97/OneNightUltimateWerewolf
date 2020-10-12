@@ -5,12 +5,13 @@ const (
 )
 
 type ElectInfo struct {
+	VoterID   string
 	VoterName string
 	CandiID   string
 }
 
-func NewElectInfo(voterName, candiID string) *ElectInfo {
-	return &ElectInfo{VoterName: voterName, CandiID: candiID}
+func NewElectInfo(voterID, voterName, candiID string) *ElectInfo {
+	return &ElectInfo{VoterID: voterID, VoterName: voterName, CandiID: candiID}
 }
 
 type SettingData struct {
@@ -28,6 +29,7 @@ func NewSettingData(cardDeck CardDeck, maxUser int) *SettingData {
 
 type Data struct {
 	CardDeck     CardDeck
+	OriCardDeck  CardDeck
 	MaxUser      int
 	DIFlag       bool
 	GameLog      string
