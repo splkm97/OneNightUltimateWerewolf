@@ -1474,9 +1474,10 @@ func masonTask(s *discordgo.Session, wfd *WF.Data, stageMsg *discordgo.Message) 
 	}
 
 	masonChanID := make([]string, 0, 3)
-	for _, item := range masonID {
-		temp, _ := s.UserChannelCreate(item)
-		masonChanID = append(masonChanID, temp.ID)
+	temp := make([]*discordgo.Channel, 0, 3)
+	for i, item := range masonID {
+		temp[i], _ = s.UserChannelCreate(item)
+		masonChanID = append(masonChanID, temp[i].ID)
 	}
 	for _, item := range masonChanID {
 		go func(cid string) {
