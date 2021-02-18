@@ -7,10 +7,11 @@
 
   <p align="center">
     한밤의 늑대인간을 친구들과 온라인으로 즐기세요!
-  </p>
   <a href="https://github.com/splkm97/OneNightUltimateWerewolf">
     <img src="Images/help_werewolf.PNG" alt="Logo">
   </a>
+  
+  </p>
 </p>
 
 
