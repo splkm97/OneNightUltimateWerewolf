@@ -10,11 +10,10 @@
   <a href="https://github.com/splkm97/OneNightUltimateWerewolf">
     <img src="Images/help_werewolf.PNG" alt="Logo">
   </a>
-  
   </p>
 </p>
 
-
+<br><br>
 
 <!-- TABLE OF CONTENTS -->
 <details open="open">
