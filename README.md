@@ -65,6 +65,8 @@ https://discord.com/api/oauth2/authorize?client_id=762653973680881685&permission
 
 * 게임에 오류가 생긴 경우 `ㅁ강제종료` 를 입력하고 30초간 재시작하지 마십시오.
 
+<br><br><br>
+
 ## **도움말**
 
 한밤의 늑대인간 플레이를 위한 도움말
