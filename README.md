@@ -3,7 +3,7 @@
 <p align="center">
   
 
-  <h3 style="font-size:30pt" align="center">한밤의 늑대인간 디스코드 봇</h3>
+  <h1 style="font-size:30pt" align="center">한밤의 늑대인간 디스코드 봇</h1>
 
   <p align="center">
     한밤의 늑대인간을 친구들과 온라인으로 즐기세요!<br><br>
