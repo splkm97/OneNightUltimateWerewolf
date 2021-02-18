@@ -2,7 +2,7 @@
 <br />
 <p align="center">
   <a href="https://github.com/splkm97/OneNightUltimateWerewolf">
-    <img src="images/help_werewolf.PNG" alt="Logo" width="80" height="80">
+    <img src="images/help_werewolf.png" alt="Logo" width="80" height="80">
   </a>
 
   <h3 align="center">한밤의 늑대인간 디스코드 봇</h3>
@@ -184,7 +184,9 @@ https://discord.com/api/oauth2/authorize?client_id=762653973680881685&permission
 ### **명령어**
 
 ```
-디스코드에서 'ㅁ'으로 시작하는 메시지 중 명령어로 등록되어 있는 메시지에 반응하여 게임이 진행됩니다. 명령어 목록은 다음과 같습니다.
+디스코드에서 'ㅁ'으로 시작하는 메시지 중
+명령어로 등록되어 있는 메시지에 반응하여 게임이 진행됩니다.
+명령어 목록은 다음과 같습니다.
 ```
 
 + 참고 명령어
