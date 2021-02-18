@@ -6,7 +6,7 @@
   <h3 align="center">한밤의 늑대인간 디스코드 봇</h3>
 
   <p align="center">
-    한밤의 늑대인간을 친구들과 온라인으로 즐기세요!
+    한밤의 늑대인간을 친구들과 온라인으로 즐기세요!<br>
   <a href="https://github.com/splkm97/OneNightUltimateWerewolf">
     <img src="Images/help_werewolf.PNG" alt="Logo">
   </a>
