@@ -2,7 +2,7 @@
 <br />
 <p align="center">
   <a href="https://github.com/splkm97/OneNightUltimateWerewolf">
-    <img src="images/help_werewolf.png" alt="Logo" width="80" height="80">
+    <img src="Images/help_werewolf.png" alt="Logo" width="80" height="80">
   </a>
 
   <h3 align="center">한밤의 늑대인간 디스코드 봇</h3>
